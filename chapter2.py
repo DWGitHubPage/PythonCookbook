@@ -498,3 +498,269 @@ def clean_spaces(s):
     s = s.replace('\f', ' ')
     return s
     print(s)
+    
+# 2.13 Aligning Text Strings
+
+text = 'Hello World'
+
+print(text.ljust(20))
+print(text.rjust(20))
+print(text.center(20))
+
+# Optional &&65.180.&&fill character.
+
+print(text.rjust(20,'='))
+print(text.center(20,'*'))
+
+# Align with format() function.
+
+print(format(text, '>20'))
+print(format(text, '<20'))
+print(format(text, '^20'))
+
+# Include fill character other than a space.
+
+print(format(text, '=>20s'))
+print(format(text, '*^20s'))
+
+# Format codes can be used to format multiple values.
+
+print('{:>10s} {:>10s}'.format('Hello', 'World'))
+
+# format() isn't specific only to strings.
+
+x = 1.2345
+
+print(format(x, '>10'))
+print(format(x, '^10.2f'))
+
+# % operator used to format text in older code.
+
+print('%-20s' % text) # Prints Hello World
+print('%20s' % text)
+
+"""Best to use format() function or method"""
+
+
+# 2.14 Combining and Concatenating Strings.
+"""Fastest way is to use join() method"""
+
+parts = ['Is', 'Chicago', 'Not', 'Chicago?']
+
+print(' '.join(parts))
+print(','.join(parts))
+print(''.join(parts))
+
+# If combining a few strings the "+" operator works well.
+
+a = 'Is Chicago'
+b = 'Not Chicago?'
+
+print(a + ' ' + b)
+
+# "+" operator works well with more complicated string formatting.
+
+print('{} {}'.format(a,b))
+print(a + ' ' + b)
+
+"""If combining string literals together in source code,
+you can simply place them adjacent to each other with no "+" operator"""
+
+a = 'Hello' 'World'
+print(a)
+
+"""Using generator expression to convert data to strings and
+concatenation st the same time"""
+
+data = ['ACME', 50, 91.1]
+
+print(','.join(str(d) for d in data))
+
+# Be careful not to make things more difficult than it should be.
+
+print(a + ':' + b + ':' + b)  # Ugly
+print(': '.join([a, b, b]))    # Ugly
+
+print(a, b, a, sep=': ')       # Better
+
+# Using generator function using yield.
+
+def sample():
+    yield 'Is'
+    yield 'Chicago'
+    yield 'Not'
+    yield 'Chicago?'
+
+text = ' '.join(sample())
+
+print(text)
+
+
+# 2.15 Interpolating Variables in Strings
+
+s = '{name} has {n} messages.'
+print(s.format(name='Guido', n=37))
+
+# Using format_map() & vars()
+
+name = 'Guido'
+n = 37
+print(s.format_map(vars()))
+
+# Also works with instances.
+
+class Info:
+    def __init__(self, name, n):
+        self.name = name
+        self.n = n
+
+a = Info('Guido', 37)
+print(s.format_map(vars(a)))
+
+# Can't use format() & format_map() if a value is missing.
+
+# print(s.format(name='Guido'))
+
+# A way to avoid that is with __missing__() method.
+
+class safesub(dict):
+    def __missing__(self, key):
+        return '{' + key + '}'
+
+del n
+print(s.format_map(safesub(vars())))
+
+# Hide variable substition behind small utilitiy function.
+
+import sys
+
+def sub(text):
+    return text.format_map(safesub(sys._getframe(1).f_locals))
+
+name = 'Guido'
+n = 37
+
+print(sub('Hello {name}'))
+print(sub('You have {n} messages.'))
+print(sub('Your favorite color is {color}'))
+
+# Using template strings.
+
+import string
+
+s = string.Template('$name has $n messages.')
+print(s.substitute(vars()))
+
+
+# 2.16 Reformatting Text to a Fixed Number of Columns
+
+s = "Look into my eyes, look into my eyes, the eyes, the eyes, \
+the eyes, not around the eyes, don't look around the eyes, \
+look into my eyes, you're under."
+
+import textwrap
+
+print(textwrap.fill(s, 70))
+print(textwrap.fill(s, 40))
+print(textwrap.fill(s, 40, initial_indent='     '))
+print(textwrap.fill(s, 40, subsequent_indent='     '))
+
+# How to get terminal size.
+
+import os
+
+# print(os.get_terminal_size().columns)
+
+
+# 2.17 Handling HTML & XML Entities in Text
+
+s = 'Elements are written as "<tag>text</tag>".'
+
+import html
+
+print(s)
+print(html.escape(s))
+
+# Disable escaping of quotes.
+
+print(html.escape(s, quote=False))
+
+"""Emiting text as ASCII & want to embed character code entities
+for non-ASCII characters, use the errors='xmlcharrefreplace' argument.
+"""
+
+s = 'Spicy Jalapeño'
+print(s.encode('ascii', errors='xmlcharrefreplace'))
+
+# Replacing entities in text manually outside of HTML or XML parser's.
+
+s  = 'Spicy &quot;Jalape&#241;o&quot.'
+
+print(html.unescape(s))
+
+t = 'The prompt is &gt;&gt;&gt;'
+
+from xml.sax.saxutils import unescape
+
+print(unescape(t))
+
+
+# 2.18 Tokenizing Text
+
+text = 'foo = 23 + 42 * 10'
+
+tokens = [('NAME', 'foo'), ('EQ','='), ('NUM', '23'), ('PLUS', '+'),
+          ('NUM', '42'), ('TIMES', '*'), ('NUM', '10')]
+
+import re
+
+NAME = r'(?P<NAME>[a-zA-Z_][a-zA-Z_0-9]*)'
+NUM = r'(?P<NUM>\d+)'
+PLUS = r'(?P<PLUS>\+)'
+TIMES = r'(?P<TIMES>\*)'
+EQ = r'(?P<EQ>=)'
+WS = r'(?P<WS>\s+)'
+
+master_pat = re.compile('|'.join([NAME, NUM, PLUS, TIMES, EQ, WS]))
+
+# Next to tokenize, use scanner() method of pattern objects.
+
+scanner = master_pat.scanner('foo 42')
+
+print(scanner.match())
+
+from collections import namedtuple
+Token = namedtuple('Token', ['type','value'])
+def generate_tokens(pat, text):
+    scanner = pat.scanner(text)
+    for m in iter(scanner.match, None):
+        yield Token(m.lastgroup, m.group())
+# Example use
+for tok in generate_tokens(master_pat, 'foo = 42'):
+    print(tok)
+
+# Filter out whitespace.
+
+tokens = (tok for tok in generate_tokens(master_pat, text)
+          if tok.type != 'WS')
+for tok in tokens:
+    print(tok)
+
+"""The order of tokens in master regular expression matters.
+The longer pattern goes first"""
+
+LT = r'(?P<LT><)'
+LE = r'(?P<LE><=)'
+EQ = r'(?P<EQ>=)'
+
+master_pat = re.compile('|'.join([LE, LT, EQ]))
+
+# Need to watch out for patterns that form substrings.
+
+PRINT = r'(P<PRINT>print)'
+NAME = r'(P<NAME>[a-zA-Z_][a-zA-Z_0-9]*)'
+
+master_pat = re.compile('|'.join([PRINT, NAME]))
+
+for tok in generate_tokens(master_pat, 'printer'):
+    print(tok)
