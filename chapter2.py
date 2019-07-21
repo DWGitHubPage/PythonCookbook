@@ -274,3 +274,227 @@ print(newtext)
 print(n)
 
 
+# 2.6 Searching & Replacing Case-Insensitive Text
+
+text = 'UPPER PYTHON, lower python, Mixed Python'
+
+print(re.findall('python', text, flags=re.IGNORECASE))
+print(re.sub('python', 'snake', text, flags=re.IGNORECASE))
+
+# Support function to fix replacing text to match text.
+
+def matchcase(word):
+    def replace(m):
+        text = m.group()
+        if text.isupper():
+            return word.upper()
+        elif text.islower():
+            return word.lower()
+        elif text[0].isupper():
+            return word.capitalize()
+        else:
+            return word
+        return replace
+        print(re.sub('python', matchcase('snake'), text, flags=re.IGNORECASE))
+
+
+# 2.7 Specifying a Regular Expression for the Shortest Match
+
+str_pat = re.compile(r'\"(.*)\"')
+text1 = 'Computer says "no."'
+
+print(str_pat.findall(text1))
+
+text2 = 'Computer says "no." Phone says "yes."'
+
+print(str_pat.findall(text2))
+
+# Add (?) to fix not matching the two quoted strings & makes it nongreedy.
+
+str_pat = re.compile(r'\"(.*?)"')
+
+print(str_pat.findall(text2))
+
+
+# 2.8 Writing a Regular Expression for Multiline Patterns
+
+comment = re.compile(r'/\*(.*?)\*')
+text1 = '/* this is a comment */'
+text2 = '''/* this is a
+              multiline comment */
+'''
+print(comment.findall(text1))                    
+print(comment.findall(text2))
+
+# To fix, add support for newlines.
+
+comment = re.compile(r'/\*((?:.|\n)*?)\*/')
+
+print(comment.findall(text2))
+
+# re.DOTALL makes the (.) match all characters, including newlines.
+
+comment = re.compile(r'/\*(.*?)\*/', re.DOTALL)
+
+print(comment.findall(text2))
+
+
+# 2.9 Normalizing Unicode Text to a Standard Representation
+
+s1 = 'Spicy Jalape\u00f1o'
+s2 = 'Spicy Jalapen\u0303o'
+
+print(s1)
+print(s2)
+
+s1 == s2  # False
+
+print(len(s1))  # 14
+print(len(s2))  # 15
+
+"""To fix multiple representations, normalize
+text into standard representation."""
+
+import unicodedata
+
+t1 = unicodedata.normalize('NFC', s1)
+t2 = unicodedata.normalize('NFC', s2)
+t1 == t2  # True
+
+print(ascii(t1))
+
+t3 = unicodedata.normalize('NFD', s1)
+t4 = unicodedata.normalize('NFD', s2)
+t3 == t4  # True
+
+print(ascii(t3))
+
+# Add extra compatibility.
+
+s = '\ufb01'  # A single character
+
+print(s)
+print(unicodedata.normalize('NFD', s))
+
+# Combined letters are broken apart here
+
+print(unicodedata.normalize('NFKD', s))
+print(unicodedata.normalize('NFKC', s))
+
+# Wanting to remove all diacritical marks from text.
+
+t1 = unicodedata.normalize('NFD', s1)
+print(''.join(c for c in t1 if not unicodedata.combining(c)))
+
+
+# 2.10 Working with Unicode Characters in Regular Expressions
+
+import re
+
+num = re.compile('\d+')
+print(num.match('123'))
+
+# Arabic digits
+
+print(num.match('\u0661\u0662\u0663'))
+
+# Using an escape sequence to match all characters
+
+arabic = re.compile('[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]+')
+
+"""Be aware of special cases, like case-insensitive matching
+with case folding."""
+
+pat = re.compile('stra\u00dfe', re.IGNORECASE)
+s = 'straße'
+
+print(pat.match(s))
+
+pat.match(s.upper())
+
+print(s.upper())
+
+
+# 2.11 Stripping Unwanted Characters from Strings
+
+# Whitespace stripping.
+
+s = '   hello world  \n'
+
+print(s.strip())
+print(s.lstrip())
+print(s.rstrip())
+
+# Character stripping.
+
+t = '-----hello====='
+print(t.lstrip('-'))
+print(t.strip('-='))
+
+# Stripping doesn't apply to any text in middle of string.
+
+s = '    hello      world    \n'
+s = s.strip()
+print(s)
+
+"""Need to use replace() or regular expression substitution
+if you need to alter inner space"""
+
+print(s.replace(' ', ''))
+
+import re
+
+print(re.sub('\s+', ' ', s))  # Adding the space in between "hello world"
+
+
+# 2.12 Sanitizing & Cleaning Up Text
+
+s = 'pýtĥöñ\fis\tawesome\r\n'
+
+print(s)
+
+remap = {
+    ord('\t') : ' ',
+    ord('\f') : ' ',
+    ord('\r') : None
+}
+a = s.translate(remap)
+print(a)
+
+import unicodedata
+import sys
+
+cmb_chrs = dict.fromkeys(c for c in range(sys.maxunicode)
+                        if unicodedata.combining(chr(c)))
+
+b = unicodedata.normalize('NFD', a)
+print(b)
+
+# Map all Unicode dec. digit characters to equivalent in ASCII.
+
+digitmap = { c: ord('0') + unicodedata.digit(chr(c))
+             for c in range(sys.maxunicode)
+             if unicodedata.category(chr(c)) == 'Nd' }
+
+print(len(digitmap))
+
+# Arabic digits.
+
+x = '\u0661\u0662\u0663'
+print(x.translate(digitmap))
+
+# Clean up code with I/) decoding & encoding functions.
+
+print(a)
+
+b = unicodedata.normalize('NFD', a)
+print(b.encode('ascii', 'ignore').decode('ascii'))
+
+# Another way to clean up whitespace & faster.
+
+def clean_spaces(s):
+    s = s.replace('\r', '')
+    s = s.replace('\t', ' ')
+    s = s.replace('\f', ' ')
+    return s
+    print(s)
