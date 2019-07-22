@@ -1,6 +1,5 @@
 # Python3.7.4
 
-
 # 2.1 Splitting Strings on Any of Multiple Delimiters
 
 line = "asdf fjdk; afed, fjek asdf,    foo"
@@ -764,3 +763,226 @@ master_pat = re.compile('|'.join([PRINT, NAME]))
 
 for tok in generate_tokens(master_pat, 'printer'):
     print(tok)
+    
+    
+# 2.19 Writing a Simple Recursive Descent Parser
+
+import re
+import collections
+
+# Token specification
+
+NUM    = r'(?P<NUM>\d+)'
+PLUS   = r'(?P<PLUS>\+)'
+MINUS  = r'(?P<MINUS>-)'
+TIMES  = r'(?P<TIMES>\*)'
+DIVIDE = r'(?P<DIVIDE>/)'
+LPAREN = r'(?P<LPAREN>\()'
+RPAREN = r'(?P<RPAREN>\))'
+WS     = r'(?P<WS>\s+)'
+
+master_pat = re.compile('|'.join([NUM, PLUS, MINUS, TIMES,
+                                  DIVIDE, LPAREN, RPAREN, WS]))
+
+# Tokenizer
+
+Token = collections.namedtuple('Token', ['type', 'value'])
+
+def generate_tokens(text):
+    scanner = master_pat.scanner(text)
+    for m in iter(scanner.match, None):
+        tok = Token(m.lastgroup, m.group())
+        if tok.type != 'WS':
+            yield tok
+
+# Parser
+
+class ExpressionEvaluator:
+
+    def parse(self, text):
+        self.tokens = generate_tokens(text)
+        self.tok = None
+        self.nexttok = None
+        self._advance()
+        return self.expr()
+
+    def _advance(self):
+        'Advance one token ahead'
+        self.tok, self.nexttok = self.nexttok, next(self.tokens, None)
+
+    
+    def _accept(self, toktype):
+        'Test and consume the next token if it matches toktype'
+        if self.nexttok and self.nexttok.type == toktype:
+            self._advance()
+            return True
+        else:
+            return False
+
+    def _expect(self, toktype):
+        'Consume next token if it matches toktype or raise SyntaxError'
+        if not self._accept(toktype):
+            raise SyntaxError('Expected ' + toktype)
+
+    # Grammar rules follow.
+
+    def expr(self):
+        "expression ::= term { ('+'|'-') term }*"
+
+        exprval = self.term()
+        while self._accept('PLUS') or self._accept('MINUS'):
+            op = self.tok.type
+            right = self.term()
+            if op == 'PLUS':
+                    exprval += right
+            elif op == 'MINUS':
+                    exprval -= right
+        return exprval
+
+    def term(self):
+        "term ::= factor { ('*'|'/') factor }*"
+        termval = self.factor()
+        while self._accept('TIMES') or self._accept('DIVIDE'):
+            op = self.tok.type
+            right = self.factor()
+            if op == 'TIMES':
+                termval *= right
+            elif op == 'DIVIDE':
+                termval /= right
+        return termval
+
+    def factor(self):
+        "factor ::= NUM | ( expr )"
+
+        if self._accept('NUM'):
+            return int(self.tok.value)
+        elif self._accept('LPAREN'):
+            exprval = self.expr()
+            self._expect('RPAREN')
+            return exprval
+        else:
+            raise SyntaxError('Expected NUMBER or LPAREN')
+
+e = ExpressionEvaluator()
+
+print(e.parse('2'))
+print(e.parse('2 + 3'))
+print(e.parse('2 + 3 * 4'))
+print(e.parse('2 + (3 + 4) * 5'))
+
+# Alternative implementation.
+
+class ExpressionTreeBuilder(ExpressionEvaluator):
+    def expr(self):
+        "expression ::= term { ('+'|'-') term }"
+
+        exprval = self.term()
+        while self._accept('PLUS') or self._accept('MINUS'):
+            op = self.tok.type
+            right = self.term()
+            if op == 'PLUS':
+                    exprval = ('+', exprval, right)
+            elif op == 'MINUS':
+                    exprval = ('-', exprval, right)
+            return exprval
+
+        def term(self):
+            "term ::= factor { ('*'|'/') factor }"
+
+            termval = self.factor()
+            while self._accept('TIMES') or self._accept('DIVIDE'):
+                op = self.tok.type
+                right = self.factor()
+                if op == 'TIMES':
+                    termval = ('*', termval, right)
+                elif op == 'DIVIDE':
+                    termval = ('/', termval, right)
+                return termval
+
+        def factor(self):
+            'factor ::= NUM | (expr )'
+
+            if self._accept('NUM'):
+                return int(self.tok.value)
+            elif self._accept('LPAREN'):
+                exprval = self.expr()
+                self._expect('RPAREN')
+                return exprval
+            else:
+                raise SyntaxError('Expected NUMBER or LPAREN')
+
+e = ExpressionTreeBuilder()
+
+print(e.parse('2 + 3'))
+print(e.parse('2 + 3 * 4'))
+print(e.parse('2 + (3 + 4) * 5'))
+print(e.parse('2 + 3 + 4'))
+
+
+# 2.20 Performing Text Operations on Byte Strings
+
+data = b'Hello World'
+
+print(data[0:5])
+print(data.startswith(b'Hello'))
+print(data.split())
+print(data.replace(b'Hello', b'Hello Cruel'))
+
+# These operations also work with byte arrays.
+
+data = bytearray(b'Hello World')
+
+print(data[0:5])
+print(data.startswith(b'Hello'))
+print(data.split())
+print(data.replace(b'Hello', b'Hello Cruel'))
+
+# Applying regular expression pattern matching to byte strings.
+
+data = b'FOO:BAR, SPAAM'
+
+import re
+
+print(re.split(b'[:,]', data))
+
+"""Be aware of how indexing byte strings produces integers,
+not individual characters"""
+
+a = 'Hello World'
+
+print(a[0])
+print(a[1])
+
+b = b'Hello World'
+
+print(b[0])
+print(b[1])
+
+"""Byte strings don't provide a nice string representation &
+don't print cleanly unless first decoded into a text string"""
+
+s = b'Hello World'
+
+print(s)
+print(s.decode('ascii'))
+
+"""With formatting byte strings, it should be done using normal
+text strings & encoding"""
+
+print('{:10s} {:10d} {:10.2f}'.format('ACME', 100, 490.1).encode('ascii'))
+
+# Need to be aware that using a byte string can change certain operations.
+
+# Write a UTF-8 filename.
+
+with open('jalape\xf1o.txt', 'w') as f:
+    f.write('spicy')
+
+# Get a directory listing.
+
+import os
+
+print(os.listdir('.'))
+print(os.listdir(b'.'))
+
+"""It's best to use normal text strings & not byte strings"""
