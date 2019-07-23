@@ -380,3 +380,428 @@ x = 3.75
 y = Fraction(*x.as_integer_ratio())
 
 print(y)
+
+
+# 3.9 Calculating with Large Numerical Arrays
+
+# Differences between lists & NumPy arrays.
+
+x = [1, 2, 3, 4]
+y = [5, 6, 7, 8]
+
+print(x * 2)
+# print(x + 10)  # TypeError: can only concatenate list (not 'int') to list
+
+print(x + y)
+
+# Numpy arrays.
+
+import numpy as np
+
+ax = np.array([1, 2, 3, 4])
+ay = np.array([5, 6, 7, 8])
+
+print(ax * 2)
+print(ax + 10)
+print(ax + ay)
+print(ax * ay)
+
+# Computing the value of a polynomial.
+
+def f(x):
+    return 3*x**2 - 2*x + 7
+
+print(f(ax))
+
+"""NumPy provides a collection of "universal functions" that also
+allow for array operations"""
+
+print(np.sqrt(ax))
+print(np.cos(ax))
+
+# Using universal functions can be hundreds of times faster than looping.
+
+grid = np.zeros(shape=(10_000, 10_000), dtype=float)
+
+print(grid)
+print(grid + 10)
+
+# Extending Python's list indexing functionality with multidimensional arrays.
+
+a = np.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]])
+
+print(a)
+
+# Select row 1.
+
+print(a[1])
+
+# Select column 1.
+
+print(a[:, 1])
+
+# Select a subregion & change it.
+
+print(a[1:3, 1:3])
+print(a[1:3, 1:3] + 10)
+
+# Broadcast a row vector across an operation on all rows.
+
+print(a + [100, 101, 102, 103])
+print(a)
+
+# Conditional assignment on an array.
+
+print(np.where(a < 10, a, 10))
+
+
+# 3.10 Performing Matrix & Linear Algebra Calculations.
+
+import numpy as np
+
+m = np.matrix([[1, -2, 3], [0, 4, 5], [7, 8, -9]])
+
+print(m)
+
+# Return transpose.
+
+print(m.T)
+
+# Return inverse.
+
+print(m.I)
+
+# Create a vector & multiply.
+
+v = np.matrix([[2], [3], [4]])
+
+print(v)
+print(m * v)
+
+# More operations with numpy.linalg subpackage.
+
+import numpy.linalg
+
+# Determinant.
+
+print(numpy.linalg.det(m))
+
+# Eigenvalues.
+
+print(numpy.linalg.eigvals(m))
+
+# Solve for x in mx = v.
+
+x = numpy.linalg.solve(m, v)
+
+print(x)
+print(m * x)
+print(v)
+
+
+# 3.11 Picking Things at Random
+
+import random
+
+values = [1, 2, 3, 4, 5, 6]
+
+print(random.choice(values))
+print(random.choice(values))
+print(random.choice(values))
+print(random.choice(values))
+
+"""Take a sampling of N items were selected items are removed from
+future consideration"""
+
+print(random.sample(values, 2))
+print(random.sample(values, 2))
+print(random.sample(values, 3))
+print(random.sample(values, 3))
+
+# Shuffling items in a sequence in place use random.shuffle().
+
+random.shuffle(values)
+
+print(values)
+
+random.shuffle(values)
+
+print(values)
+
+# To produce random integers, use random.randint().
+
+print(random.randint(0, 10))
+print(random.randint(0, 10))
+print(random.randint(0, 10))
+print(random.randint(0, 10))
+print(random.randint(0, 10))
+print(random.randint(0, 10))
+
+
+"""To produce uniforma floating-point values in rane 0 to 1,
+use random.random()"""
+
+print(random.random())
+print(random.random())
+print(random.random())
+
+# To get random-bits expressed as an integer, use random.getrandbits().
+
+print(random.getrandbits(200))
+
+"""The random module computes random numbers using the Mersenne Twister
+algorithm. It's a deterministic algorithm, but you can alter the initial
+seed by using the random.seed() function"""
+
+print(random.seed())             # Seed based on system time or os.urandom()
+print(random.seed(12345))        # Seed based on integer given
+print(random.seed(b'bytedata'))  # Seed based on byte data
+
+"""Functions in random() shouldn't be used in cryptography, use ssl
+modules instead"""
+
+import ssl
+
+print(ssl.RAND_bytes(1))
+print(ssl.RAND_bytes(5))
+
+
+# 3.12 Converting Days to Seconds, & Other Basic Time Conversions
+
+from datetime import timedelta
+
+a = timedelta(days=2, hours=6)
+b = timedelta(hours=4.5)
+c = a + b
+
+print(c.days)
+print(c.seconds)
+print(c.seconds / 3600)
+print(c.total_seconds() / 3600)
+
+"""If you need specific dates & times, create datetime instances &
+use the standard mathematical operations to manipulate them"""
+
+from datetime import datetime
+
+a = datetime(2012, 9, 23)
+
+print(a + timedelta(days=10))
+
+b = datetime(2012, 12, 21)
+d = b - a
+
+print(d.days)
+
+now = datetime.today()
+
+print(now)
+print(now + timedelta(minutes=10))
+
+# With calculations, datetime is aware of leap years.
+
+a = datetime(2012, 2, 1)
+b = datetime(2012, 2, 28)
+
+print(a - b)
+print((a - b).days)
+
+c = datetime(2013, 3, 1)
+d = datetime(2013, 2, 28)
+
+print((c - d).days)
+
+"""For more complex date manipulations such as time zones, holidays, etc.,
+use dateutil module"""
+
+a = datetime(2012, 9, 23)
+
+from dateutil.relativedelta import relativedelta
+
+print(a + relativedelta(months=+1))
+
+# Time between two dates.
+
+b = datetime(2012, 12, 21)
+d = b - a
+
+print(d)
+
+d = relativedelta(b, a)
+
+print(d)
+print(d.months)
+print(d.days)
+
+
+# 3.13 Determining Last Friday's Date
+
+from datetime import datetime, timedelta
+
+weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday',
+            'Friday', 'Saturday', 'Sunday']
+
+def get_previous_byday(dayname, start_date=None):
+    if start_date is None:
+        start_date = datetime.today()
+    day_num = start_date.weekday()
+    day_num_target = weekdays.index(dayname)
+    days_ago = (7 + day_num - day_num_target) % 7
+    if days_ago == 0:
+        days_ago = 7
+    target_date = start_date - timedelta(days=days_ago)
+    return target_date
+
+print(datetime.today())
+print(get_previous_byday('Monday'))
+print(get_previous_byday('Tuesday'))
+print(get_previous_byday('Friday'))
+
+"""The optional start_date can be supplied using another datetim instance"""
+
+print(get_previous_byday('Sunday', datetime(2012, 12, 21)))
+
+"""If you're doing a lot of date calculations, might be better off
+installing python-dateutil package"""
+
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+from dateutil.rrule import *
+
+d = datetime.now()
+
+print(d)
+
+# Next Friday
+
+print(d + relativedelta(weekday=FR))
+
+# Last Friday
+
+print(d + relativedelta(weekday=FR(-1)))
+
+
+# 3.14 Finding the Date Range for the Current Month
+
+from datetime import datetime, date, timedelta
+import calendar
+
+def get_month_range(start_date=None):
+    if start_date is None:
+        start_date = date.today().replace(day=1)
+    _, days_in_month = calendar.monthrange(start_date.year, start_date.month)
+    end_date = start_date + timedelta(days=days_in_month)
+    return (start_date, end_date)
+
+a_day = timedelta(days=1)
+first_day, last_day = get_month_range()
+while first_day < last_day:
+    print(first_day)
+    first_day += a_day
+
+# Using a generator to calculate dates.
+
+def date_range(start, stop, step):
+    while start < stop:
+        yield start
+        start += step
+
+for d in date_range(datetime(2012, 9, 1), datetime(2012, 10, 1),
+                    timedelta(hours=6)):
+    print(d)
+
+
+# 3.15 Converting Strings into Datetimes
+
+from datetime import datetime
+
+text = '2012-09-20'
+y = datetime.strptime(text, '%Y-%m-%d')
+z = datetime.now()
+diff = z - y
+
+print(diff)
+
+# datetime can also work in reverse & make it more readable.
+
+print(z)
+
+nice_z = datetime.strftime(z, '%A %B %d, %Y')
+
+print(nice_z)
+
+# Performance of strptime() is often bad, best to use a custom solution instead.
+
+from datetime import datetime
+
+def parse_ymd(s):
+    year_s, mon_s, day_s = s.split('-')
+    return datetime(int(year_s), int(mon_s), int(day_s))
+
+
+# 3.16 Manipulating Dates Involving Time Zones
+
+from datetime import datetime
+from pytz import timezone
+import pytz
+
+d = datetime(2012, 12, 21, 9, 30, 0)
+
+print(d)
+
+# Localize the date for Chicago.
+
+central = timezone('US/Central')
+loc_d = central.localize(d)
+
+print(loc_d)
+
+"""Once the date has been localized, it can be converted to other time
+zones, such as in Bangalore"""
+
+bang_d = loc_d.astimezone(timezone('Asia/Kolkata'))
+
+print(bang_d)
+
+# Make sure to be aware of daylight saving transitions & other details.
+
+# This example would be wrong:
+
+d = datetime(2013, 3, 10, 1, 45)
+loc_d = central.localize(d)
+
+print(loc_d)
+
+later = loc_d + timedelta(minutes=30)
+
+print(later)
+
+# Above is wrong because it doesn't account for the one-hour skip in local time.
+
+from datetime import timedelta
+
+later = central.normalize(loc_d + timedelta(minutes=30))
+
+print(later)
+
+# Converting time zones to UTC time.
+
+print(loc_d)
+
+utc_d = loc_d.astimezone(pytz.utc)
+
+print(utc_d)
+
+# Now to convert it to appropriate timze zone.
+
+later_utc = utc_d + timedelta(minutes=30)
+
+print(later_utc.astimezone(central))
+
+# How to find timezeone of a country.
+
+import pytz
+
+utc = pytz.utc
+
+print(pytz.country_timezones['IN'])
