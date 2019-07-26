@@ -14,13 +14,11 @@ with open('stocks.csv') as f:
 
 from collections import namedtuple
 
-
 with open('stocks.csv') as f:
     f_csv = csv.reader(f)
     headings = next(f_csv)
     for r in f_csv:
         print(r)
-
 
 with open('stocks.csv') as f:
     f_csv = csv.DictReader(f)
