@@ -721,3 +721,550 @@ def init_fromlocals(self):
 class Stock:
     def __init__(self, name, shares, price):
         init_fromlocals(self)
+        
+        
+# 8.12 Defining an Interface or Abstract Base Class
+
+from abc import ABCMeta, abstractmethod
+
+class Istream(metaclass=ABCMeta):
+    @abstractmethod
+    def read(self, maxbytes=-1):
+        pass
+    @abstractmethod
+    def write(self, data):
+        pass
+
+class SocketStream(IStream):
+    def read(self, maxbytes=-1):
+    
+    def write(self, data):
+
+def serialize(obj, stream):
+    if not isinstance(stream, IStream):
+        raise TypeError('Expected an IStream')
+
+import io
+
+# Register the built-in I/) classes as supporting our interface
+
+IStream.register(io.IOBase)
+
+# Open a normal file & type check
+
+f = open('foo.txt')
+isinstance(f, IStream)
+
+from abc import ABCMeta, abstractmethod
+
+class A(metaclass=ABCMeta):
+    @property
+    @abstractmethod
+    def name(self):
+        pass
+
+    @name.setter
+    @abstractmethod
+    def name(self, value):
+        pass
+
+    @classmethod
+    @abstractmethod
+    def method(cls):
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def method2():
+        pass
+
+import collections
+
+# Check if x is a sequence.
+if isinstance(x, collections.Sequence):
+
+# Check if x is iterable.
+if isinstance(x, collections.Iterable):
+
+# Check if x has a size.
+if isinstance(x, collections.Sized):
+
+# Check if x is a mapping.
+if isinstance(x, collections.Mapping):
+
+from decimal import Decimal
+import numbers
+
+x = Decimal('3.4')
+isinstance(x, numbers.Real)  # Returns False
+
+
+# 8.13 Implementing a Data Model or Type System
+
+class Descriptor:
+    def __init__(self, name=None, **opts):
+        self.name = name
+        self.__dict__.update(opts)
+
+    def __set__(self, instance, value):
+        instance.__dict__[self.name] = value
+
+def Typed(expected_type, cls=None):
+    if cls is None:
+        return lambda cls: Typed(expected_type, cls)
+
+    super_set = cls.__set__
+    def __set__(self, instance, value):
+        if not isinstance(value, expected_type):
+            raise TypeError('expected ' + str(expected_type))
+        super_set(self, instance, value)
+    cls.__set__ = __set__
+    return cls
+
+def Unsigned(cls):
+    super_set = cls.__set__
+    def __set__(self, instance, value):
+        if value < 0:
+            raise ValueError('Expected >= 0')
+        super_set(self, instance, value)
+    cls.__set__ = __set__
+    return cls
+
+def MaxSized(cls):
+    super_init = cls.__init__
+    def __init__(self, name=None, **opts):
+        if 'size' not in opts:
+            raise TypeError('missing size option')
+        self.size = opts['size']
+        super_init(self, name, **opts)
+    cls.__init__ = __init__
+
+    super_set = cls.__set__
+    def __set__(self, instance, value):
+        if len(value) >= self.size:
+            raise ValueError('size must be < ' + str(self.size))
+        super_set(self, instance, value)
+    cls.__set__ = __set__
+    return cls
+
+@Typed(int)
+class Integer(Descriptor):
+    pass
+
+@Unsigned
+class UnsignedInteger(Integer):
+    pass
+
+@Typed(float)
+class Float(Descriptor):
+    pass
+
+@Unsigned
+class UnsignedFloat(Float):
+    pass
+
+@Typed(str)
+class String(Descriptor):
+    pass
+
+@MaxSized
+class SizedString(String):
+    pass
+
+# Class decorator to apply constraints
+def check_attributes(**kwargs):
+    def decorate(cls):
+        for key, value in kwargs.items():
+            if isinstance(value, Descriptor):
+                value.name = key
+                setattr(cls, key, value)
+            else:
+                setattr(cls, key, value(key))
+        return cls
+    return decorate
+
+# A metaclass that applies checking
+class checkedmeta(type):
+    def __new__(cls, clsname, bases, methods):
+        # Attach attribute names to the descriptors
+        for key, value in methods.items():
+            if isinstance(value, Descriptor):
+                value.name = key
+        return type.__new__(cls, clsname, bases, methods)
+
+# Testing code
+def test(s):
+    print(s.name)
+    s.shares = 75
+    print(s.shares)
+    try:
+        s.shares = -10
+    except ValueError as e:
+        print(e)
+    try:
+        s.price = 'a lot'
+    except TypeError as e:
+        print(e)
+
+    try:
+        s.name = 'ABRACADABRA'
+    except ValueError as e:
+        print(e)
+
+# Various Examples:
+if __name__ == '__main__':
+    print("# --- Class with descriptors")
+    class Stock:
+        # Specify constraints
+        name = SizedString('name', size=8)
+        shares = UnsignedInteger('shares')
+        price = UnsignedFloat('price')
+        def __init__(self, name, shares, price):
+            self.name = name
+            self.shares = shares
+            self.price = price
+
+    s = Stock('ACME',50,91.1)
+    test(s)
+
+    print("# --- Class with class decorator")
+    @check_attributes(name=SizedString(size=8), 
+                      shares=UnsignedInteger,
+                      price=UnsignedFloat)
+    class Stock:
+        def __init__(self, name, shares, price):
+            self.name = name
+            self.shares = shares
+            self.price = price
+
+    s = Stock('ACME',50,91.1)
+    test(s)
+
+    print("# --- Class with metaclass")
+    class Stock(metaclass=checkedmeta):
+        name   = SizedString(size=8)
+        shares = UnsignedInteger()
+        price  = UnsignedFloat()
+        def __init__(self, name, shares, price):
+            self.name = name
+            self.shares = shares
+            self.price = price
+
+    s = Stock('ACME',50,91.1)
+    test(s)
+
+
+# 8.14 Implementing Custom Containers
+
+import collections.abc
+import bisect
+
+class SortedItems(collections.Sequence):
+    def __init__(self, initial=None):
+        self._items = sorted(initial) if initial is not None else []
+
+    # Required sequence methods
+    def __getitem__(self, index):
+        return self._items[index]
+
+    def __len__(self):
+        return len(self._items)
+
+    # Method for adding an item in the right location
+    def add(self, item):
+        bisect.insort(self._items, item)
+
+if __name__ == '__main__':
+    
+    items = SortedItems([5, 1, 3])
+    
+    print(list(items))
+    print(items[0])
+    print(items[-1])
+    
+    items.add(2)
+    
+    print(list(items))
+    
+    items.add(-10)
+    
+    print(list(items))
+    print(items[1:4])
+    print(3 in items)
+    print(len(items))
+
+    for n in items:
+        print(n)
+
+# Example 2.
+
+items = SortedItems()
+
+import collections
+
+print(isinstance(items, collections.Iterable))
+print(isinstance(items, collections.Sequence))
+print(isinstance(items, collections.Container))
+print(isinstance(items, collections.Sized))
+print(isinstance(items, collections.Mapping))
+
+# Suppose you have a class that inherits from collections.MutableSequence:
+
+class Items(collections.MutableSequence):
+    def __init__(self, initial=None):
+        self._items = list(initial) if initial is not None else []
+
+    # Required sequence methods.
+    def __getitem__(self, index):
+        print('Getting:', index)
+        return self._items[index]
+
+    def __setitem__(self, index, value):
+        print('Setting:', index, value)
+        self._items[index] = value
+
+    def __delitem__(self, index):
+        print('Deleting:', index)
+        del self._items[index]
+
+    def insert(self, index, value):
+        print('Inserting:', index, value)
+        self._items.insert(index, value)
+
+    def __len__(self):
+        print('Len')
+        return len(self._items)
+
+a = Items([1, 2, 3])
+
+print(len(a))
+print(a.append(4))
+print(a.append(2))
+print(a.count(2))
+print(a.remove(3))
+
+
+# 8.15 Delegating Attribute Access
+
+class A:
+    def spam(self, x):
+        pass
+
+    def foo(self):
+        pass
+
+class B:
+    def __init__(self):
+        self._a = A()
+
+    def spam(self, x):
+        # Delegate to the internal self._a instance.
+        return self._a.spam(x)
+
+    def foo(self):
+        # Delegate to the internal self._a instance.
+        return self._a.foo()
+
+    def bar(self):
+        pass
+
+# If you have many methods to delegate use this alternative approach.
+
+class A:
+    def spam(self, x):
+        pass
+
+    def foo(self):
+        pass
+
+    class B:
+        def __init__(self):
+            self._a = A()
+
+        def bar(self):
+            pass
+
+        # Expose all of the methods defined on class A.
+        def __getattr__(self, name):
+            return getattr(self._a, name)
+
+b = B()
+b.bar()
+b.spam(42)
+
+# Another example of delegation is in the implementation of proxies.
+
+'''A proxy class that wraps around another object, but
+exposes its public attributes'''
+
+class Proxy:
+    def __init__(self, obj):
+        self._obj = obj
+
+    # Delegate attribute lookup to internal obj
+    def __getattr__(self, name):
+        print('getattr:', name)
+        return getattr(self._obj, name)
+
+    # Delegate attribute assignment
+    def __setattr__(self, name, value):
+        if name.startswith('_'):
+            super().__setattr__(name, value)
+        else:
+            print('setattr:', name, value)
+            setattr(self._obj, name, value)
+
+    # Delegate attribute deletion
+    def __delattr__(self, name):
+        if name.startswith('_'):
+            super().__delattr__(name)
+        else:
+            print('delattr:', name)
+            delattr(self._obj, name)
+
+# To use that proxy class, you wrap it around another instance.
+
+class Spam:
+    def __init__(self, x):
+        self.x = x
+    def bar(self, y):
+        print('Spam.bar:', self.x, y)
+
+# Create an instance.
+
+s = Spam(2)
+
+# Create a proxy around it.
+
+p = Proxy(s)
+
+# Access the proxy.
+
+print(p.x)
+print(p.bar(3))
+p.x = 37
+
+# Example of a solution involving delegation.
+
+class A:
+    def spam(self, x):
+        print('A.spam', x)
+
+    def foo(self):
+        print('A.foo')
+
+class B:
+    def __init__(self):
+        self._a = A()
+
+    def spam(self, x):
+        print('B.spam', x)
+        self._a.spam(x)
+
+    def bar(self):
+        print('B.bar')
+
+    def __getattr__(self, name):
+        return getattr(self._a, name)
+
+# Example manually delegating associated special methods.
+
+class ListLike:
+    def __init__(self):
+        self._items = []
+    def __getattr__(self, name):
+        return getattr(self._items, name)
+
+    # Added special methods to support certain list operations.
+    def __len__(self):
+        return len(self._items)
+    def __getitem__(self, index):
+        return self._items[index]
+    def __setitem__(self, index, value):
+        self._items[index] = value
+    def __delitem__(self, index):
+        del self._items[index]
+
+
+# 8.16 Defining More Than One Constructor in a Class
+
+import time
+
+class Date:
+    #Primary constructor
+    def __init__(self, year, month, day):
+        self.year = year
+        self.month = month
+        self.day = day
+
+    # Alternative constructor
+    @classmethod
+    def today(cls):
+        t = time.localtime()
+        return cls(t.tm_year, t.tm_mon, t.tm_mday)
+
+a = Date(2019, 8, 2)
+b = Date.today()
+
+# Example with inheritance.
+
+class NewDate(Date):
+    pass
+
+c = Date.today()
+d = NewDate.today()
+
+# Using __init__() method to allow for different calling conventions.
+
+class Date:
+    def __init__(self, *args):
+        if len(args) == 0:
+            t = time.localtime()
+            args = (t.tm_year, t.tm_mon, t.tm_mday)
+        self.year, self.month, self.day = args
+
+a = Date(2019, 8, 2)  # Clear. A specific date.
+
+
+# 8.17 Creating an Instance Without Invoking __init__()
+
+class Date:
+    def __init__(self, year, month, day):
+        self.year = year
+        self.month = month
+        self.day = day
+
+d = Date.__new__(Date)
+
+# Now to set the appropriate instance variables.
+
+data = {
+    'year': 2019,
+    'month':8,
+    'day':2
+    }
+
+for key, value in data.items():
+    setattr(d, key, value)
+
+print(d.year)
+print(d.month)
+
+# Example of an alternate constructor.
+
+from time import localtime
+
+class Date:
+    def __init__(self, year, month, day):
+        self.year = year
+        self.month = month
+        self.day = day
+
+    @classmethod
+    def today(cls):
+        d = cls.__new__(cls)
+        t = localtime()
+        d.year = t.tm_year
+        d.month = t.tm_mon
+        d.day = t.tm_mday
+        return d
