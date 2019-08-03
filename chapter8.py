@@ -1268,3 +1268,784 @@ class Date:
         d.month = t.tm_mon
         d.day = t.tm_mday
         return d
+    
+    
+# 8.18 Extending Classes with Mixins
+
+class LoggedMappingMixin:
+    __slots__ = ()
+
+    def __getitem__(self, key):
+        print('Getting ' + str(key))
+        return super().__getitem__(key)
+
+    def __setitem__(self, key, value):
+        print('Setting {} = {!r}'.format(key, value))
+        return super().__setitem__(key, value)
+
+    def __delitem__(self, key):
+        print('Deleting ' + str(key))
+        return super().__delitem__(key)
+
+class SetOnceMappingMixin:
+    __slots__ = ()
+    def __setitem__(self, key, value):
+        if key in self:
+            raise KeyError(str(key) + ' already set')
+        return super().__setitem__(key, value)
+
+class StringKeysMappingMixin:
+    __slots__ = ()
+    def __setitem__(self, key, value):
+        if not isinstance(key, str):
+            raise TypeError('keys must be strings!')
+        return super().__setitem__(key, value)
+
+
+# 8.19 Implementing Stateful Objects or State Machines
+
+class Connection:
+    def __init__(self):
+        self.state = 'CLOSED'
+
+    def read(self):
+        if self.state != 'OPEN':
+            raise RuntimeError('Not open')
+        print('reading')
+
+    def write(self, date):
+        if self.state != 'OPEN':
+            raise RuntimeError('Not open')
+        print('writing')
+
+    def open(self):
+        if self.state == 'OPEN':
+            raise RuntimeError('Already open')
+        self.state = 'OPEN'
+
+    def close(self):
+        if self.state == 'CLOSED':
+            raise RuntimeError('Already closed')
+        self.state  = 'CLOSED'
+
+# A more elegant approach:
+
+class Connection:
+    def __init__(self):
+        self.new_state(ClosedConnectionState)
+
+    def new_state(self, newstate):
+        self._state = newstate
+
+    # Delegate to the state class
+    def read(self):
+        return self._state.read(self)
+
+    def write(self, data):
+        return self._state.write(self, data)
+
+    def open(self):
+        return self._state.open(self)
+
+    def close(self):
+        return self._state.close(self)
+
+# Connection state base class.
+
+class ConnectionState:
+
+    @staticmethod
+    def read(conn):
+        raise NotImplementedError()
+
+    @staticmethod
+    def write(conn, data):
+        raise NotImplementedError()
+
+    @staticmethod
+    def open(conn):
+        raise NotImplementedError()
+
+    @staticmethod
+    def close(conn):
+        raise NotImplementedError()
+
+# Implementation of different states
+
+class ClosedConnectionState(ConnectionState):
+    @staticmethod
+    def read(conn):
+        raise RuntimeError('Not open')
+
+    @staticmethod
+    def write(conn, data):
+        raise RuntimeError('Not open')
+
+    @staticmethod
+    def open(conn):
+        conn.new_state(OpenConnectionState)
+
+class OpenConnectionState(ConnectionState):
+    @staticmethod
+    def read(conn):
+        print('reading')
+
+    @staticmethod
+    def write(conn, data):
+        print('writing')
+
+    @staticmethod
+    def open(conn):
+        raise RuntimeError('Already open')
+
+    @staticmethod
+    def close(conn):
+        conn.new_state(ClosedConnectionState)
+
+c = Connection()
+
+print(c._state)
+
+c.open()
+
+print(c._state)
+
+c.read()
+c.write('hello')
+c.close()
+
+print(c._state)
+
+# Another example:
+
+class Connection:
+    def __init__(self):
+        self.new_state(ClosedConnection)
+
+    def new_state(self, newstate):
+        self.__class__ = newstate
+
+    def read(self):
+        raise NotImplementedError()
+
+    def write(self, data):
+        raise NotImplementedError()
+
+    def open(self):
+        raise NotImplementedError()
+
+    def close(self):
+        raise NotImplementedError()
+
+class ClosedConnection(Connection):
+    def read(self):
+        raise RuntimeError('Not open')
+
+    def write(self, data):
+        raise RuntimeError('Not open')
+
+    def open(self):
+        self.new_state(OpenConnection)
+
+    def close(self):
+        raise RuntimeError('Already closed')
+
+class OpenConnection(Connection):
+    def read(self):
+        print('reading')
+
+    def write(self, data):
+        print('writing')
+
+    def open(self):
+        raise RuntimeError('Already open')
+
+    def close(self):
+        self.new_state(ClosedConnection)
+
+c = Connection()
+c
+c.open()
+
+print(c)
+print(c.read())
+c.close()
+print(c)
+
+# Example with large if-elif-else blocks.
+
+# Original implementation
+
+class State:
+    def __init__(self):
+        self.state = 'A'
+    def action(self, x):
+        if state == 'A':
+            state = 'B'
+
+        elif state == 'B':
+            state = 'C'
+
+        elif state == 'C':
+            state = 'A'
+
+# Alternative implementation
+
+class State:
+    def __init__(self):
+        self.new_state(State_A)
+
+    def new_state(self, state):
+        self.__class__ = state
+
+    def action(self, x):
+        raise NotImplementedError()
+
+class State_A(State):
+    def action(self, x):
+        self.new_state(State_B)
+
+class State_B(State):
+    def action(self, x):
+        self.new_state(State_C)
+
+class State_C(State):
+    def action(self, x):
+        self.new_state(State_A)
+
+
+# 8.20 Calling a Method on an Object Given the Name As a String
+
+import math
+
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def __repr__(self):
+        return 'Point({!r:})'.format(self.x, self.y)
+
+    def distance(self, x, y):
+        return math.hypot(self.x - x, self.y - y)
+
+p = Point(2, 3)
+d = getattr(p, 'distance')(0, 0)
+
+# Alternative using operator.methodcaller()
+
+import operator
+
+operator.methodcaller('distance', 0, 0)(p)
+
+points = [
+    Point(1, 2),
+    Point(3, 0),
+    Point(10, -3),
+    Point(-5, -7),
+    Point(-1, 8),
+    Point(3, 2)
+]
+
+# Sort by distance from origin (0, 0)
+
+points.sort(key=operator.methodcaller('distance', 0, 0))
+print(points)
+
+# Provide the appropriate self argument.
+
+p = Point(3, 4)
+d = operator.methodcaller('distance', 0, 0)
+
+print(d(p))
+
+
+# 8.21 Implementing the Visitor Pattern
+
+class Node:
+    pass
+
+class UnaryOperator(Node):
+    def __init__(self, operand):
+        self.operand = operand
+
+class BinaryOperator(Node):
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+
+class Add(BinaryOperator):
+    pass
+
+class Sub(BinaryOperator):
+    pass
+
+class Mul(BinaryOperator):
+    pass
+
+class Div(BinaryOperator):
+    pass
+
+class Negate(UnaryOperator):
+    pass
+
+class Number(Node):
+    def __init__(self, value):
+        self.value = value
+
+# Representation of 1 + 2 * (3 - 4) / 5
+
+t1 = Sub(Number(3), Number(4))
+t2 = Mul(Number(2), t1)
+t3 = Div(t2, Number(5))
+t4 = Add(Number(1), t3)
+
+class NodeVisitor:
+    def visit(self, node):
+        methname = 'visit_' + type(node).__name__
+        meth = getattr(self, methname, None)
+        if meth is None:
+            meth = self.generic_visit
+        return meth(node)
+
+    def generic_visit(self, node):
+        raise RuntimeError('No {} method'.format('visit_' + type(node).__name__))
+
+class Evaluator(NodeVisitor):
+    def visit_Number(self, node):
+        return node.value
+
+    def visit_Add(self, node):
+        return self.visit(node.left) + self.visit(node.right)
+
+    def visit_Sub(self, node):
+        return self.visit(node.left) - self.visit(node.right)
+
+    def visit_Mul(self, node):
+        return self.visit(node.left) * self.visit(node.right)
+
+    def visit_Div(self, node):
+        return self.visit(node.left) / self.visit(node.right)
+
+    def visit_Negate(self, node):
+        return -node.operand
+
+e = Evaluator()
+
+print(e.visit(t4))
+
+'''Example of a class that translates an expression into operations
+on a stack machine'''
+
+class StackCode(NodeVisitor):
+    def generate_code(self, node):
+        self.instructions = []
+        self.visit(node)
+        return self.instructions
+
+    def visit_Number(self, node):
+        self.instructions.append(('PUSH', node.value))
+
+    def binop(self, node, instruction):
+        self.visit(node.left)
+        self.visit(node.right)
+        self.instructions.append((instruction,))
+
+    def visit_Add(self, node):
+        self.binop(node, 'ADD')
+
+    def visit_Sub(self, node):
+        self.binop(node, 'SUB')
+
+    def visit_Mul(self, node):
+        self.binop(node, 'MUL')
+
+    def visit_Div(self, node):
+        self.binop(node, 'DIV')
+
+    def unaryop(self, node, instruction):
+        self.visit(node.operand)
+        self.instructions.append((instruction,))
+
+    def visit_Negate(self, node):
+        self.unaryop(node, 'NEG')
+
+s = StackCode()
+print(s.generate_code(t4))
+
+# Example if you were to write an HTTP framework.
+
+class HTTPHandler:
+    def handle(self, request):
+        methname = 'do_' + request.request_method
+        getattr(self, methname)(request)
+
+    def do_GET(self, request):
+        pass
+    
+    def do_POST(self, request):
+        pass
+    
+    def do_HEAD(self, request):
+        pass
+
+
+# 8.22 Implementing the Visitor Pattern Without Recursion
+
+import types
+
+class Node:
+    pass
+
+class Visit:
+    def __init__(self, node):
+        self.node = node
+
+class NodeVisitor:
+    def visit(self, node):
+        stack = [ Visit(node) ]
+        last_result = None
+        while stack:
+            try:
+                last = stack[-1]
+                if isinstance(last, types.GeneratorType):
+                    stack.append(last.send(last_result))
+                    last_result = None
+                elif isinstance(last, Visit):
+                    stack.append(self._visit(stack.pop().node))
+                else:
+                    last_result = stack.pop()
+            except StopIteration:
+                stack.pop()
+        return last_result
+
+    def _visit(self, node):
+        methname = 'visit_' + type(node).__name__
+        meth = getattr(self, methname, None)
+        if meth is None:
+            meth = self.generic_visit
+        return meth(node)
+    
+    def generic_visit(self, node):
+        raise RuntimeError('No {} method'.format('visit_' + type(node).__name__))
+
+class UnaryOperator(Node):
+    def __init__(self, operand):
+        self.operand = operand
+
+class BinaryOperator(Node):
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+
+class Add(BinaryOperator):
+    pass
+
+class Sub(BinaryOperator):
+    pass
+
+class Mul(BinaryOperator):
+    pass
+
+class Div(BinaryOperator):
+    pass
+
+class Negate(UnaryOperator):
+    pass
+
+class Number(Node):
+    def __init__(self, value):
+        self.value = value
+
+class Evaluator(NodeVisitor):
+    def visit_Number(self, node):
+        return node.value
+
+    def visit_Add(self, node):
+        yield (yield Visit(node.left)) + (yield Visit(node.right))
+
+    def visit_Sub(self, node):
+        yield (yield Visit(node.left)) - (yield Visit(node.right))
+
+    def visit_Mul(self, node):
+        yield (yield Visit(node.left)) * (yield Visit(node.right))
+
+    def visit_Div(self, node):
+        yield (yield Visit(node.left)) / (yield Visit(node.right))
+
+    def visit_Negate(self, node):
+        yield -(yield Visit(node.operand))
+    
+if __name__ == '__main__':
+    # 1 + 2*(3-4) / 5
+    t1 = Sub(Number(3), Number(4))
+    t2 = Mul(Number(2), t1)
+    t3 = Div(t2, Number(5))
+    t4 = Add(Number(1), t3)
+
+    # Evaluate it
+    e = Evaluator()
+    print(e.visit(t4))     
+
+
+# 8.23 Managing Memory in Cyclic Data Structures
+
+import weakref
+
+class Node:
+    def __init__(self, value):
+        self.value = value
+        self._parent = None
+        self.children = []
+
+    def __repr__(self):
+        return 'Node({!r:})'.format(self.value)
+
+    # Property that manages the parent as a weak-reference.
+    @property
+    def parent(self):
+        return self._parent if self._parent is None else self._parent()
+
+    @parent.setter
+    def parent(self, node):
+        self._parent = weakref.ref(node)
+
+    def add_child(self, child):
+        self.children.append(child)
+        child.parent = self
+
+root = Node('parent')
+c1 = Node('child')
+root.add_child(c1)
+
+print(c1.parent)
+
+del root
+
+print(c1.parent)
+
+# Another example & the usual rules of how garbage collection don't apply.
+
+# Class just to illustrate when deletion occurs.
+
+class Data:
+    def __del__(self):
+        print('Data.__del__')
+
+# Node class involving a cycle.
+
+class Node:
+    def __init__(self):
+        self.data = Data()
+        self.parent = None
+        self.children = []
+
+    def add_child(self, child):
+        self.children.append(child)
+        child.parent = self
+
+a = Data()
+del a
+a = Node()
+del a
+a = Node()
+a.add_child(Node())
+del a
+
+# Forcing garbage collection.
+
+import gc
+
+gc.collect()
+
+# Example of weak references eliminating reference cycles.
+
+import weakref
+
+a = Node()
+a_ref = weakref.ref(a)
+
+print(a_ref)
+
+print(a_ref())
+
+del a
+
+print(a_ref())
+
+
+# 8.24 Making Classes Support Comparison Operations
+
+from functools import total_ordering
+
+class Room:
+    def __init__(self, name, length, width):
+        self.name = name
+        self.length = length
+        self.width = width
+        self.square_feet = self.length * self.width
+
+@total_ordering
+class House:
+    def __init__(self, name, style):
+        self.name = name
+        self.style = style
+        self.rooms = list()
+
+    @property
+    def living_space_footage(self):
+        return sum(r.square_feet for r in self.rooms)
+
+    def add_room(self, room):
+        self.rooms.append(room)
+
+    def __str__(self):
+        return '{}: {} square foot {}'.format(self.name,
+                                              self.living_space_footage,
+                                              self.style)
+
+    def __eq__(self, other):
+        return self.living_space_footage == other.living_space_footage
+
+    def __lt__(self, other):
+        return self.living_space_footage < other.living_space_footage
+
+# Build a few houses, and add rooms to them.
+
+h1 = House('h1', 'Cape')
+h1.add_room(Room('Master Bedroom', 14, 21))
+h1.add_room(Room('Living Room', 18, 20))
+h1.add_room(Room('Kitchen', 12, 16))
+h1.add_room(Room('Office', 12, 12))
+h2 = House('h2', 'Ranch')
+h2.add_room(Room('Master Bedroom', 14, 21))
+h2.add_room(Room('Living Room', 18, 20))
+h2.add_room(Room('Kitchen', 12, 16))
+h3 = House('h3', 'Split')
+h3.add_room(Room('Master Bedroom', 14, 21))
+h3.add_room(Room('Living Room', 18, 20))
+h3.add_room(Room('Office', 12, 16))
+h3.add_room(Room('Kitchen', 15, 17))
+houses = [h1, h2, h3]
+
+print('Is h1 bigger than h2?', h1 > h2) 
+print('Is h2 smaller than h3?', h2 < h3) 
+print('Is h2 greater than or equal to h1?', h2 >= h1) 
+print('Which one is biggest?', max(houses))
+print('Which is smallest?', min(houses))
+
+
+# 8.25 Creating Cached Instances
+
+import logging
+
+a = logging.getLogger('foo')
+b = logging.getLogger('bar')
+
+print(a is b)
+
+c = logging.getLogger('foo')
+
+print(a is c)
+
+# Use a factory function to implement that behavior.
+
+class Spam:
+    def __init__(self, name):
+        self.name = name
+
+# Caching support
+
+import weakref
+
+_spam_cache = weakref.WeakValueDictionary()
+
+def get_spam(name):
+    if name not in _spam_cache:
+        s = Spam(name)
+        _spam_cache[name] = s
+    else:
+        s = _spam_cache[name]
+    return s
+
+a = get_spam('foo')
+b = get_spam('bar')
+
+print(a is b)
+
+c = get_spam('foo')
+
+print(a is c)
+
+a = get_spam('foo')
+b = get_spam('bar')
+c = get_spam('foo')
+
+print(list(_spam_cache))
+
+del a
+del c
+
+print(list(_spam_cache))
+
+del b
+
+print(list(_spam_cache))
+
+'''Putting the caching code into a separate manager class &
+gluing things together'''
+
+import weakref
+
+class CachedSpamManager:
+    def __init__(self):
+        self._cache = weakref.WeakValueDictionary()
+    def get_spam(self, name):
+        if name not in self._cache:
+            s = Spam(name)
+            self._cache[name] = s
+        else:
+            s = self._cache[name]
+        return s
+
+    def clear(self):
+        self._cache.clear()
+
+class Spam:
+    manager = CachedSpamManager()
+
+    def __init__(self, name):
+        self.name = name
+
+    def get_spam(name):
+        return Spam.manager.get_spam(name)
+
+a = Spam('foo')
+b = Spam('foo')
+
+print(a is b)
+
+# Using __init__() to give hint to users not to instantiate Spam.
+
+class Spam:
+    def __init__(self, *args, **kwargs):
+        raise RuntimeError("Can't instantiate directly")
+
+    # Alternative constructor
+    @classmethod
+    def _new(cls, name):
+        self = cls.__new__(cls)
+        self.name = name
+
+import weakref
+
+class CachedSpamManager:
+    def __init__(self):
+        self._cache = weakref.WeakValueDictionary()
+    def get_spam(self, name):
+        if name not in self._cache:
+            s = Spam._new(name)
+            self._cache[name] = s
+        else:
+            s = self._cache[name]
+        return s
